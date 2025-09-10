@@ -109,8 +109,6 @@ class MainWindow(QWidget):
             # Validaciones según distribución
             if dist == "Uniforme":
                 a, b = param1, param2
-                if a <= 0:
-                    raise ValueError("En la distribución uniforme, 'a' debe ser mayor a 0.")
                 if b <= a:
                     raise ValueError("En la distribución uniforme, 'b' debe ser mayor que 'a'.")
                 datos = generar_uniforme(n, a, b)
