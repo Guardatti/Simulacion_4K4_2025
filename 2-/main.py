@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QComboBox, QSpinBox, QTabWidget, QMessageBox
+    QLineEdit, QPushButton, QComboBox, QSpinBox, QMessageBox
 )
 from distribuciones import generar_uniforme, generar_exponencial, generar_normal
 from histograma import HistogramaWidget
@@ -13,7 +13,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("Generador de Variables Aleatorias")
         self.resize(900, 700)
 
-        layout = QVBoxLayout(self)
+        self.layout_principal = QVBoxLayout(self)
 
         # -------------------------
         # Formulario de parámetros
@@ -25,7 +25,6 @@ class MainWindow(QWidget):
         self.distribucion_combo.addItems(["Uniforme", "Exponencial", "Normal"])
         form_layout.addWidget(QLabel("Distribución:"))
         form_layout.addWidget(self.distribucion_combo)
-        # Conectar señal para actualizar placeholders
         self.distribucion_combo.currentIndexChanged.connect(self.actualizar_placeholders)
 
         # Tamaño de muestra
@@ -48,7 +47,7 @@ class MainWindow(QWidget):
         form_layout.addWidget(QLabel("Intervalos:"))
         form_layout.addWidget(self.intervalos_spin)
 
-        layout.addLayout(form_layout)
+        self.layout_principal.addLayout(form_layout)
 
         # Inicializar placeholders según distribución seleccionada
         self.actualizar_placeholders()
@@ -57,14 +56,15 @@ class MainWindow(QWidget):
         # Botón generar
         # -------------------------
         self.btn_generar = QPushButton("Generar")
-        layout.addWidget(self.btn_generar)
+        self.layout_principal.addWidget(self.btn_generar)
         self.btn_generar.clicked.connect(self.generar)
 
         # -------------------------
-        # Tabs para resultados
+        # Contenedor para resultados
         # -------------------------
-        self.tabs = QTabWidget()
-        layout.addWidget(self.tabs)
+        self.resultados_widget = QWidget()
+        self.resultados_layout = QVBoxLayout(self.resultados_widget)
+        self.layout_principal.addWidget(self.resultados_widget)
 
     # -------------------------
     # Método para actualizar placeholders
@@ -74,16 +74,16 @@ class MainWindow(QWidget):
         if dist == "Uniforme":
             self.param1_input.setPlaceholderText("Ingrese el valor de A")
             self.param2_input.setPlaceholderText("Ingrese el valor de B")
-            self.param2_input.setEnabled(True)  # habilitado
+            self.param2_input.setEnabled(True)
         elif dist == "Exponencial":
             self.param1_input.setPlaceholderText("Ingrese lambda")
             self.param2_input.setPlaceholderText("(No aplica)")
             self.param2_input.clear()
-            self.param2_input.setEnabled(False)  # deshabilitado
+            self.param2_input.setEnabled(False)
         elif dist == "Normal":
             self.param1_input.setPlaceholderText("Ingrese la media μ")
             self.param2_input.setPlaceholderText("Ingrese la desviación σ")
-            self.param2_input.setEnabled(True)  # habilitado
+            self.param2_input.setEnabled(True)
 
     # -------------------------
     # Método para generar datos
@@ -106,20 +106,17 @@ class MainWindow(QWidget):
                 raise ValueError("Debe ingresar el parámetro 2.")
             param2 = float(param2_text) if param2_text else None
 
-            # Validaciones según distribución
             if dist == "Uniforme":
                 a, b = param1, param2
                 if b <= a:
                     raise ValueError("En la distribución uniforme, 'b' debe ser mayor que 'a'.")
                 datos = generar_uniforme(n, a, b)
-
             elif dist == "Exponencial":
                 lambd = param1
                 if lambd <= 0:
                     raise ValueError("En la distribución exponencial, lambda debe ser mayor a 0.")
                 datos = generar_exponencial(n, lambd)
-
-            else:  # Normal
+            else:
                 mu, sigma = param1, param2
                 if sigma <= 0:
                     raise ValueError("En la distribución normal, la desviación estándar debe ser mayor a 0.")
@@ -127,12 +124,15 @@ class MainWindow(QWidget):
 
             intervalos = self.intervalos_spin.value()
 
-            # Limpiar tabs anteriores
-            self.tabs.clear()
-            # Tab Histograma
-            self.tabs.addTab(HistogramaWidget(datos, intervalos), "Histograma")
-            # Tab Tabla de frecuencias
-            self.tabs.addTab(TablaFrecuencias(datos, intervalos), "Tabla")
+            # Limpiar resultados anteriores
+            for i in reversed(range(self.resultados_layout.count())):
+                widget = self.resultados_layout.itemAt(i).widget()
+                if widget is not None:
+                    widget.setParent(None)
+
+            # Agregar histograma y tabla uno debajo del otro
+            self.resultados_layout.addWidget(HistogramaWidget(datos, intervalos))
+            self.resultados_layout.addWidget(TablaFrecuencias(datos, intervalos))
 
         except ValueError as ve:
             QMessageBox.warning(self, "Error de validación", str(ve))
@@ -140,9 +140,6 @@ class MainWindow(QWidget):
             QMessageBox.critical(self, "Error inesperado", str(e))
 
 
-# -------------------------
-# Bloque principal
-# -------------------------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ventana = MainWindow()
